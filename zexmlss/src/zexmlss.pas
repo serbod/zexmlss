@@ -6065,7 +6065,7 @@ function TZEPictureStore.GetItem(num: integer): TZEPicture;
 begin
   Result := nil;
   if ((num >= 0) and (num < Count)) then
-    Result := FItems[num];
+    Result := TZEPicture(FItems[num]);
 end;
 
 function TZEPictureStore.IsEqual(const Source: TPersistent): boolean;

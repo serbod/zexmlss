@@ -7454,6 +7454,9 @@ begin
     TmpStream := _AddFile(path_docprops + 'core.xml');
     ZEXLSXCreateDocPropsCore(XMLSS, TmpStream, TextConverter, CodePageName, BOM);
 
+    for i := 0 to StreamList.Count-1 do
+      TStream(StreamList[i]).Position := 0;
+
     zip.ZipAllFiles();
   finally
     StreamList.Free();

@@ -21,9 +21,11 @@
 // Archivers for Delphi, not used for Free Pascal / Lazarus
 // Архиваторы для Delphi, не используются для Free Pascal / Lazarus
 { use Delphi XE2 and above }
+{$ifndef FPC}
 {$if CompilerVersion >= 23.0}         // bds xe2 (2012)
   {$define XE2ZIP}
 {$ifend}
+{$endif}
 
 { use KaZip (recommended) ) }
 {$define KAZIP}

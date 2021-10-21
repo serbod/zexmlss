@@ -31,10 +31,14 @@
 
 unit zearchhelper;
 
+{$IFDEF FPC}
+  {$mode objfpc}{$H+}
+{$ENDIF}
+
 interface
 
 uses
-  {$ifndef FPC}Windows,{$endif}
+  {$ifdef MSWINDOWS}Windows,{$ENDIF}
   Classes,
   SysUtils;
 
