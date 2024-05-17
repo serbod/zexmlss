@@ -71,9 +71,6 @@ type TZXMLSSave = class; CZXMLSSaveClass = class of TZXMLSSave;
         ///   Ancestors may chose to override it to return their instances.
         class function From(const zxbook: TZEXMLSS): IZXMLSSave; virtual;
      protected
-        constructor Create (const zxbook: TZEXMLSS); overload;
-        constructor Create (const zxsaver: TZXMLSSave); overload; virtual;
-
         function ExportFormat(const fmt: string): IZXMLSSave;
         function As_(const fmt: string): IZXMLSSave; //inline;
 
@@ -132,6 +129,9 @@ type TZXMLSSave = class; CZXMLSSaveClass = class of TZXMLSSave;
         class procedure RegisterFormat(const sv: CZXMLSSaveClass);
         class procedure UnRegisterFormat(const sv: CZXMLSSaveClass);
      public
+        constructor Create (const zxbook: TZEXMLSS); overload;
+        constructor Create (const zxsaver: TZXMLSSave); overload; virtual;
+
         class procedure Register;
         class procedure UnRegister;
      end;

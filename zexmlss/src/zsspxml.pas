@@ -527,7 +527,7 @@ uses
   duansistr;
 {$ENDIF}
 
-//// читатели
+//// readers
 
 procedure ReadCharUTF8(const ReadCPChar: TReadCPCharObj; var text: ansistring; var _eof: boolean);
 var

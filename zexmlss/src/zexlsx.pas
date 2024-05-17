@@ -57,9 +57,9 @@ uses
 
 type
   TZXLSXFileItem = record
-    name: string;     //путь к файлу
-    original: string; //исходная строка
-    ftype: integer;   //тип контента
+    name: string;     // path to file
+    original: string; // original text
+    ftype: Integer;   // file type
   end;
 
   TZXLSXFileArray = array of TZXLSXFileItem;
@@ -336,6 +336,16 @@ const
   SCHEMA_PACKAGE_REL = SCHEMA_PACKAGE + '/relationships';
   SCHEMA_SHEET_MAIN = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
 
+  FTYPE_WORKSHEET = 0;
+  FTYPE_STYLES    = 1;
+  FTYPE_MAIN      = 2;
+  FTYPE_RELATION  = 3;
+  FTYPE_SHAREDSTR = 4;
+  FTYPE_COREPROPS = 5;
+  FTYPE_COMMENTS  = 6;
+  FTYPE_DRAWING   = 7;
+  FTYPE_THEME     = 8;
+
   REL_TYPE_WORKSHEET = 0;
   REL_TYPE_STYLES = 1;
   REL_TYPE_SHARED_STR = 2;
@@ -348,7 +358,7 @@ const
   REL_TYPE_DRAWING = 9;
 
 type
-  //шрифт
+  // Font
   TZEXLSXFont = record
     name: string;
     bold: boolean;
@@ -512,7 +522,7 @@ end;
 
 procedure TXSLXZipHelper.AddToFiles(const sname: string; ftype: integer);
 begin
-  inc(FFilesCount);
+  Inc(FFilesCount);
   SetLength(FFileArray, FFilesCount);
   FFileArray[FFilesCount - 1].name := sname;
   FFileArray[FFilesCount - 1].original := sname;
@@ -546,8 +556,8 @@ begin
   FNeedReadComments := false;
 end;
 
-//Возвращат номер файла с примечаниями для текущего листа
-//Если возвращает отрицательное число - примечания не обноружены
+// Returns current sheet comments file number
+// If comments not found, returns -1
 function TXSLXZipHelper.GetCurrentPageCommentsNumber(): integer;
 var
   i, l: integer;
@@ -555,18 +565,18 @@ var
   b: boolean;
 
 begin
-  result := -1;
-  b := false;
+  Result := -1;
+  b := False;
 
   for i := 0 to FSheetRelationsCount - 1 do
-  if (FSheetRelations[i].ftype = 7) then
+  if (FSheetRelations[i].ftype = FTYPE_COMMENTS) then
   begin
     s := FSheetRelations[i].target;
-    b := true;
+    b := True;
     break;
   end;
 
-  //Если найдены примечания
+  // If comments found
   if (b) then
   begin
     l := length(s);
@@ -574,10 +584,10 @@ begin
       if ((s[1] = '.') and (s[2] = '.')) then
         delete(s, 1, 3);
     for i := 0 to FFilesCount - 1 do
-    if (FFileArray[i].ftype = 7) then
+    if (FFileArray[i].ftype = FTYPE_COMMENTS) then
       if (pos(s, FFileArray[i].name) <> 0) then
       begin
-        result := i;
+        Result := i;
         break;
       end;
   end;
@@ -601,7 +611,6 @@ var
   var
     i: integer;
     s: string;
-
   begin
     s := UpperCase(_name);
     result := false;
@@ -617,7 +626,6 @@ var
   procedure _AddFile(_num, _ftype: integer);
   var
     s: string;
-
   begin
     SetLength(FFileArray, FFilesCount + 1);
     s := FArchFiles[_num];
@@ -636,7 +644,7 @@ var
   begin
     b := false;
     for i := 0 to FFilesCount - 1 do
-    if (FFileArray[i].ftype = 3) then
+    if (FFileArray[i].ftype = FTYPE_RELATION) then
     begin
       b := true;
       break;
@@ -646,17 +654,17 @@ var
     begin
       s := '_rels/.rels';
       if (_FileExists(s, i)) then
-        _AddFile(i, 3);
+        _AddFile(i, FTYPE_RELATION);
 
       s := 'xl/_rels/workbook.xml.rels';
       if (_FileExists(s, i)) then
-        _AddFile(i, 3);
+        _AddFile(i, FTYPE_RELATION);
     end; //if
 
-    //Styles
+    // Styles
     b := false;
     for i := 0 to self.FFilesCount - 1 do
-    if (FFileArray[i].ftype = 1) then
+    if (FFileArray[i].ftype = FTYPE_STYLES) then
     begin
       b := true;
       break;
@@ -666,7 +674,7 @@ var
     begin
       s := 'styles.xml';
       if (_FileExists(s, i)) then
-        _AddFile(i, 1);
+        _AddFile(i, FTYPE_STYLES);
     end; //if
   end; //_AddAdditionalFiles
 
@@ -676,7 +684,7 @@ begin
     try
       AStream.Position := 0;
       b := false;
-      //Список файлов
+      // Files list
       if (FileType = -2) then
       begin
         if (not ZEXSLXReadContentTypes(AStream,  FFileArray, FFilesCount)) then
@@ -691,8 +699,8 @@ begin
         _AddAdditionalFiles();
 
       end else
-      //relationships
-      if (FileType = 3) then
+      // Relationships
+      if (FileType = FTYPE_RELATION) then
       begin
         SetLength(FRelationsArray, FRelationsCount + 1);
         SetLength(FRelationsCounts, FRelationsCount + 1);
@@ -717,39 +725,39 @@ begin
               end;
             end;
         end; //if
-        inc(FRelationsCount);
+        Inc(FRelationsCount);
       end else
-      //sharedstrings
-      if (FileType = 4) then
+      // SharedStrings
+      if (FileType = FTYPE_SHAREDSTR) then
       begin
         if (not ZEXSLXReadSharedStrings(AStream, FStrArray, FStrCount)) then
           FRetCode := FRetCode or 3;
       end else
-      //стили
-      if (FileType = 1) then
+      // Styles
+      if (FileType = FTYPE_STYLES) then
       begin
         if (not ZEXSLXReadStyles(FXMLSS, AStream, FThemaColor, FThemaColorCount, FReadHelper)) then
           FRetCode := FRetCode or 5;
       end else
-      //Workbook
-      if (FileType = 2) then
+      // Workbook
+      if (FileType = FTYPE_MAIN) then
       begin
         if (not ZEXSLXReadWorkBook(FXMLSS, AStream, FRelationsArray[FSheetRelationNumber], FRelationsCounts[FSheetRelationNumber])) then
           FRetCode := FRetCode or 3;
       end else
-      //Sheet
-      if (FileType = 0) then
+      // Sheet
+      if (FileType = FTYPE_WORKSHEET) then
       begin
         if (not ZEXSLXReadSheet(FXMLSS, AStream, ListName, FStrArray, FStrCount, FSheetRelations, FSheetRelationsCount, FReadHelper)) then
           FRetCode := FRetCode or 4;
       end else
-      //Тема
-      if (FileType = 5) then
+      // Theme
+      if (FileType = FTYPE_THEME) then
       begin
         if (not ZEXSLXReadTheme(AStream, FThemaColor, FThemaColorCount)) then
           FRetCode := FRetCode or 6;
       end else
-      //SheetRelations для конкретного листа (чтение ссылок и примечаний)
+      // SheetRelations for some sheet (links and comments reader)
       if (FileType = 111) then
       begin
         if (not ZE_XSLXReadRelationships(AStream, FSheetRelations, FSheetRelationsCount, b, false)) then
@@ -757,8 +765,8 @@ begin
         else
           FNeedReadComments := true;
       end else
-      //Примечания
-      if (FileType = 113) then
+      // Comments
+      if (FileType = FTYPE_COMMENTS) then
       begin
         if (isNeedReadComments) then
           if (not ZEXSLXReadComments(FXMLSS, AStream)) then
@@ -1603,32 +1611,32 @@ begin
           s := xml.Attributes.ItemsByName['ContentType'];
           t := -1;
           if (s = 'application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml') then
-            t := 0
+            t := FTYPE_WORKSHEET
           else
           if (s = 'application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml') then
-            t := 1
+            t := FTYPE_STYLES
           else
           if (s = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml') or
           	 (s = 'application/vnd.openxmlformats-officedocument.spreadsheetml.template.main+xml') then
-            t := 2
+            t := FTYPE_MAIN
           else
           if (s = 'application/vnd.openxmlformats-package.relationships+xml') then
-            t := 3
+            t := FTYPE_RELATION
           else
           if (s = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml') then
-            t := 4
+            t := FTYPE_SHAREDSTR
           else
           if (s = 'application/vnd.openxmlformats-package.core-properties+xml') then
-            t := 5
+            t := FTYPE_COREPROPS
           else
           if (s = 'application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml') then
-            t := 6
+            t := FTYPE_COMMENTS
           else
           if (s = 'application/vnd.openxmlformats-officedocument.vmlDrawing') then
-            t := 7
+            t := FTYPE_DRAWING
           else
           if (s = 'application/vnd.openxmlformats-officedocument.theme+xml') then
-            t := 8;
+            t := FTYPE_THEME;
 
           FileArray[FilesCount].ftype := t;
 
@@ -1638,20 +1646,20 @@ begin
       end;
     end;
 
-    result := true;
+    Result := True;
   finally
     if (Assigned(xml)) then
       FreeAndNil(xml);
   end;
 end; //ZEXSLXReadContentTypes
 
-//Читает строки из sharedStrings.xml
+// Reads strings from sharedStrings.xml
 //INPUT
-//  var Stream: TStream           - поток для чтения
-//  var StrArray: TStringDynArray - возвращаемый массив со строками
-//  var StrCount: integer         - кол-во элементов
+//  var Stream: TStream           - stream for reading
+//  var StrArray: TStringDynArray - returned array with strings
+//  var StrCount: Integer         - array elements count
 //RETURN
-//      boolean - true - всё ок
+//      boolean - True - Succes
 function ZEXSLXReadSharedStrings(var Stream: TStream; out StrArray: TStringDynArray; out StrCount: integer): boolean;
 var
   xml: TZsspXMLReaderH;
@@ -1689,11 +1697,11 @@ begin
         end; //while
         SetLength(StrArray, StrCount + 1);
         StrArray[StrCount] := s;
-        inc(StrCount);
+        Inc(StrCount);
       end; //if
     end; //while
 
-    result := true;
+    Result := True;
 
   finally
     if (Assigned(xml)) then
@@ -1796,7 +1804,7 @@ var
   end; //_CheckCFoperator
 
 begin
-  result := false;
+  Result := False;
   CFCondition := ZCFNumberValue;
   CFOperator := ZCFOpGT;
 
@@ -1827,26 +1835,26 @@ function ZEXSLXReadSheet(var XMLSS: TZEXMLSS; var Stream: TStream; const SheetNa
                          ReadHelper: TZEXLSXReadHelper): boolean;
 var
   xml: TZsspXMLReaderH;
-  _currPage: integer;
-  _currRow: integer;
-  _currCol: integer;
+  _currPage: Integer;
+  _currRow: Integer;
+  _currCol: Integer;
   _currSheet: TZSheet;
   _currCell: TZCell;
   s: string;
   _tmpr: real;
-  _t: integer;
+  _t: Integer;
   _td: TDateTime;
   _tfloat: Double;
 
   //Проверить кол-во строк
-  procedure CheckRow(const RowCount: integer);
+  procedure CheckRow(const RowCount: Integer);
   begin
     if (_currSheet.RowCount < RowCount) then
       _currSheet.RowCount := RowCount;
   end;
 
   //Проверить кол-во столбцов
-  procedure CheckCol(const ColCount: integer);
+  procedure CheckCol(const ColCount: Integer);
   begin
     if (_currSheet.ColCount < ColCount) then
       _currSheet.ColCount := ColCount
@@ -1872,7 +1880,7 @@ var
       if (xml.Eof) then
         break;
 
-      //ячейка
+      // cell
       if (xml.TagName = 'c') then
       begin
         s := xml.Attributes.ItemsByName['r']; //номер
@@ -2022,7 +2030,7 @@ var
   //Чтение диапазона ячеек с автофильтром
   procedure _ReadAutoFilter();
   begin
-    _currSheet.AutoFilter:=xml.Attributes.ItemsByName['ref'];
+    _currSheet.AutoFilter := xml.Attributes.ItemsByName['ref'];
   end;
 
   //Чтение объединённых ячеек
@@ -4739,7 +4747,7 @@ var
     end;
   end; //_CheckSheetRelations
 
-  //Прочитать примечания
+  // Read sheet comments
   procedure _ReadComments();
   var
     i, l: integer;
@@ -4759,7 +4767,7 @@ var
       break;
     end;
 
-    //Если найдены примечания
+    // if comments found
     if (b) then
     begin
       l := length(s);
@@ -4776,7 +4784,7 @@ var
               b := true;
               break;
             end;
-      //Если файл не найден
+      // if file not found
       if (not b) then
       begin
         s := DirName + 'xl' + PathDelim + s;
@@ -4784,7 +4792,7 @@ var
           b := true;
       end;
 
-      //Файл с примечаниями таки присутствует!
+      // file actually exists!
       if (b) then
       try
         _stream := TFileStream.Create(s, fmOpenRead or fmShareDenyNone);
@@ -4896,7 +4904,7 @@ begin
         inc(RelationsCount);
       end;
 
-      //sharedStrings.xml
+      // sharedStrings.xml
       for i:= 0 to FilesCount - 1 do
       if (FileArray[i].ftype = 4) then
       begin
@@ -4910,7 +4918,7 @@ begin
         break;
       end;
 
-      //тема (если есть)
+      // theme (if exists)
       for i := 0 to FilesCount - 1 do
       if (FileArray[i].ftype = 8) then
       begin
@@ -4924,7 +4932,7 @@ begin
         break;
       end;
 
-      //стили (styles.xml)
+      // styles.xml
       for i := 0 to FilesCount - 1 do
       if (FileArray[i].ftype = 1) then
       begin
@@ -4938,7 +4946,7 @@ begin
           b := true;
       end;
 
-      //чтение страниц
+      // read sheets
       _no_sheets := true;
       if (SheetRelationNumber > 0) then
       begin
@@ -5086,7 +5094,7 @@ var
       _num := ZH.GetCurrentPageCommentsNumber();
       if (_num >= 0) then
       begin
-        ZH.FileType := 113;
+        ZH.FileType := FTYPE_COMMENTS;
         _getFile(i);
       end;
     end;
@@ -5112,7 +5120,7 @@ begin
     try
       lst := TStringList.Create();
       lst.Clear();
-      lst.Add('[Content_Types].xml'); //список файлов
+      lst.Add('[Content_Types].xml'); // files list
       ZH := TXSLXZipHelper.Create();
       ZH.XMLSS := XMLSS;
       u_zip := TUnZipper.Create();
@@ -5132,9 +5140,9 @@ begin
         exit;
       end;
 
-      ZH.FileType := 3;
+      ZH.FileType := FTYPE_RELATION;
       for i := 0 to ZH.FilesCount - 1 do
-      if (ZH.FileArray[i].ftype = 3) then
+      if (ZH.FileArray[i].ftype = FTYPE_RELATION) then
       begin
         ZH.FileNumber := i;
         _getFile(i);
@@ -5145,10 +5153,10 @@ begin
         end;
       end;
 
-      //sharedStrings.xml
-      ZH.FileType := 4;
+      // sharedStrings.xml
+      ZH.FileType := FTYPE_SHAREDSTR;
       for i:= 0 to ZH.FilesCount - 1 do
-      if (ZH.FileArray[i].ftype = 4) then
+      if (ZH.FileArray[i].ftype = FTYPE_SHAREDSTR) then
       begin
         _getFile(i);
         if (ZH.RetCode <> 0) then
@@ -5159,10 +5167,10 @@ begin
         break;
       end;
 
-      //тема (если есть)
-      ZH.FileType := 5;
+      // theme (if exists)
+      ZH.FileType := FTYPE_THEME;
       for i := 0 to ZH.FilesCount - 1 do
-      if (ZH.FileArray[i].ftype = 8) then
+      if (ZH.FileArray[i].ftype = FTYPE_THEME) then
       begin
         _getFile(i);
         if (ZH.RetCode <> 0) then
@@ -5173,10 +5181,10 @@ begin
         break;
       end;
 
-      //стили (styles.xml)
-      ZH.FileType := 1;
+      // styles (styles.xml)
+      ZH.FileType := FTYPE_STYLES;
       for i := 0 to ZH.FilesCount - 1 do
-      if (ZH.FileArray[i].ftype = 1) then
+      if (ZH.FileArray[i].ftype = FTYPE_STYLES) then
       begin
         _getFile(i);
         if (ZH.RetCode <> 0) then
@@ -5187,12 +5195,12 @@ begin
       end;
 
       _no_sheets := true;
-      //чтение страниц
+      // read sheets
       if (ZH.SheetRelationNumber > 0) then
       begin
-        ZH.FileType := 2;
+        ZH.FileType := FTYPE_MAIN;
         for i := 0 to ZH.FilesCount - 1 do
-        if (ZH.FileArray[i].ftype = 2) then
+        if (ZH.FileArray[i].ftype = FTYPE_MAIN) then
         begin
           _getFile(i);
           if (ZH.RetCode <> 0) then
@@ -5213,7 +5221,7 @@ begin
 
           _CheckSheetRelations(ZH.RelationsArray[ZH.SheetRelationNumber][j].fileid);
 
-          ZH.FileType := 0;
+          ZH.FileType := FTYPE_WORKSHEET;
           _getFile(ZH.RelationsArray[ZH.SheetRelationNumber][j].fileid);
           if (ZH.RetCode <> 0) then
             result := result or ZH.RetCode;
@@ -5226,10 +5234,10 @@ begin
         i := 0;
         while (i < ZH.FilesCount) do
         begin
-          if (ZH.FileArray[i].ftype = 0) then
+          if (ZH.FileArray[i].ftype = FTYPE_WORKSHEET) then
           begin
             _CheckSheetRelations(i);
-            ZH.FileType := 0;
+            ZH.FileType := FTYPE_WORKSHEET;
             _getFile(i);
             if (ZH.RetCode <> 0) then
               result := result or ZH.RetCode;
@@ -5672,15 +5680,15 @@ begin
 end;
 {$ENDIF} // ZUSE_DRAWINGS
 
-//Создаёт лист документа (sheet*.xml)
+// Creates document sheet (sheet*.xml)
 //INPUT
-//  var XMLSS: TZEXMLSS                 - хранилище
-//    Stream: TStream                   - поток для записи
+//  var XMLSS: TZEXMLSS                 - storage
+//    Stream: TStream                   - stream for writing
 //    SheetNum: integer                 - номер листа в документе
-//    TextConverter: TAnsiToCPConverter - конвертер из локальной кодировки в нужную
+//    TextConverter: TAnsiToCPConverter - converter from local to desired codepage
 //    CodePageName: string              - название кодовой страници
 //    BOM: ansistring                   - BOM
-//  var isHaveComments: boolean         - возвращает true, если были комментарии (чтобы создать comments*.xml)
+//  var isHaveComments: boolean         - returns True, if there has comment (need for creating comments*.xml)
 //  const WriteHelper: TZEXLSXWriteHelper - additional data
 //RETURN
 //      integer
@@ -5872,38 +5880,53 @@ var
     _xml.WriteEndTagNode(); //sheetViews
   end; //WriteXLSXSheetHeader
 
-  procedure WriteXLSXSheetCols();
+  procedure WriteXLSXSheetCol(ColOpt: TZColOptions; AMin, AMax: Integer);
   var
-    i: integer;
     s: string;
-    ProcessedColumn: TZColOptions;
-
   begin
     _xml.Attributes.Clear();
+    _xml.Attributes.Add('collapsed', 'false', false);
+    _xml.Attributes.Add('hidden', XLSXBoolToStr(ColOpt.Hidden), false);
+    _xml.Attributes.Add('min', IntToStr(AMin), false);
+    _xml.Attributes.Add('max', IntToStr(AMax), false);
+    s := '0';
+    if ((ColOpt.StyleID >= -1) and (ColOpt.StyleID < XMLSS.Styles.Count)) then
+      s := IntToStr(ColOpt.StyleID + 1);
+    _xml.Attributes.Add('style', s, false);
+    _xml.Attributes.Add('width', ZEFloatSeparator(FormatFloat('0.##########', ColOpt.WidthMM * 5.14509803921569 / 10)), false);
+    if ColOpt.AutoFitWidth then
+      _xml.Attributes.Add('bestFit', '1', false);
+    _xml.WriteEmptyTag('col', true, false);
+  end;
+
+  procedure WriteXLSXSheetCols();
+  var
+    i, iMin, iMax: integer;
+    s: string;
+    PrevColOpt, ColOpt: TZColOptions;
+  begin
+    PrevColOpt := nil;
+    iMin := 0;
+    _xml.Attributes.Clear();
     _xml.WriteTagNode('cols', true, true, true);
-    for i := 0 to _sheet.ColCount - 1 do
+    iMax := _sheet.ColCount - 1;
+    for i := 0 to iMax do
     begin
-      _xml.Attributes.Clear();
-      _xml.Attributes.Add('collapsed', 'false', false);
-      _xml.Attributes.Add('hidden', XLSXBoolToStr(_sheet.Columns[i].Hidden), false);
-      s := IntToStr(i + 1);
-      //Как там эти max / min считаются?
-      if (i = _sheet.ColCount - 1) then
+      ColOpt := _sheet.Columns[i];
+      if i = 0 then
       begin
-        if (i + 1 <= 1025) then
-          s := '1025';
+        PrevColOpt := ColOpt;
+        iMin := 0;
+        Continue;
       end;
-      _xml.Attributes.Add('max', s, false); //??
-      _xml.Attributes.Add('min', IntToStr(i + 1), false); //??
-      s := '0';
-      ProcessedColumn := _sheet.Columns[i];
-      if ((ProcessedColumn.StyleID >= -1) and (ProcessedColumn.StyleID < XMLSS.Styles.Count)) then
-        s := IntToStr(ProcessedColumn.StyleID + 1);
-      _xml.Attributes.Add('style', s, false);
-      _xml.Attributes.Add('width', ZEFloatSeparator(FormatFloat('0.##########', ProcessedColumn.WidthMM * 5.14509803921569 / 10)), false);
-      if ProcessedColumn.AutoFitWidth then
-        _xml.Attributes.Add('bestFit', '1', false);
-      _xml.WriteEmptyTag('col', true, false);
+      if (not ColOpt.IsEqual(PrevColOpt)) then
+      begin
+        WriteXLSXSheetCol(PrevColOpt, iMin+1, i+1);
+        PrevColOpt := ColOpt;
+        iMin := i;
+      end;
+      if i = iMax then
+        WriteXLSXSheetCol(ColOpt, iMin+1, i+1);
     end;
     _xml.WriteEndTagNode(); //cols
   end; //WriteXLSXSheetCols
@@ -5916,7 +5939,6 @@ var
     _r: TRect;
     k1, k2, k: integer;
     _in_merge_not_top: boolean; //if cell in merge area, but not top left
-    
   begin
     _xml.Attributes.Clear();
     _xml.WriteTagNode('sheetData', true, true, true);
@@ -5934,6 +5956,9 @@ var
       _xml.WriteTagNode('row', true, true, false);
       for j := 0 to n do
       begin
+        if _sheet.Cell[j, i].IsEmpty then
+          Continue;
+
         _xml.Attributes.Clear();
         if (not WriteHelper.isHaveComments) then
           if (_sheet.Cell[j, i].Comment > '') then

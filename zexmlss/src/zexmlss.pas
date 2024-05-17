@@ -88,6 +88,8 @@ type
   public
     constructor Create();virtual;
     procedure Assign(Source: TPersistent); override;
+    function IsEqual(Source: TZCell): Boolean;
+    function IsEmpty(): Boolean;
     procedure Clear();
     property AlwaysShowComment: boolean read FAlwaysShowComment write FAlwaysShowComment default false;
     property Comment: string read FComment write FComment;      //примечание
@@ -330,6 +332,7 @@ type
   public
     constructor Create(ASheet: TZSheet); virtual;
     procedure Assign(Source: TPersistent); override;
+    function IsEqual(Source: TZRowColOptions): Boolean; virtual;
     property Hidden: boolean read FHidden write FHidden default false;
     property StyleID: integer read FStyleID write FStyleID default -1;
     property Breaked: boolean read FBreaked write FBreaked default false;
@@ -2953,6 +2956,33 @@ begin
     inherited Assign(Source);
 end;
 
+function TZCell.IsEqual(Source: TZCell): Boolean;
+begin
+  Result := (FFormula = Source.Formula)
+        and (FData = Source.FData)
+        and (FHref = Source.FHref)
+        and (FComment = Source.FComment)
+        and (FCommentAuthor = Source.FCommentAuthor)
+        and (FCellStyle = Source.FCellStyle)
+        and (FCellType = Source.FCellType)
+        and (FAlwaysShowComment = Source.FAlwaysShowComment)
+        and (FShowComment = Source.FShowComment);
+end;
+
+function TZCell.IsEmpty(): Boolean;
+begin
+  Result := (FFormula = '')
+        and (FData = '')
+        and (FHref = '')
+        and (FComment = '')
+        and (FCommentAuthor = '')
+        and (FHRefScreenTip = '')
+        and (FCellType = ZEString)
+        and (FCellStyle = -1)
+        and (FAlwaysShowComment = false)
+        and (FShowComment = false);
+end;
+
 //ќчистка €чейки
 procedure TZCell.Clear();
 begin
@@ -3166,6 +3196,15 @@ begin
     FBreaked := (Source as TZRowColOptions).Breaked;
   end else
     inherited Assign(Source);
+end;
+
+function TZRowColOptions.IsEqual(Source: TZRowColOptions): Boolean;
+begin
+  Result := (Hidden = Source.Hidden)
+        and (StyleID = Source.StyleID)
+        and (FSize = Source.FSize)
+        and (FAuto = Source.FAuto)
+        and (FBreaked = Source.FBreaked);
 end;
 
 function  TZRowColOptions.GetAuto(): boolean;
@@ -3517,12 +3556,12 @@ begin
     begin
       FCells[i,j] := TZCell.Create();
     end;
-    FColumns[i] := TZColOptions.create(self);
+    FColumns[i] := TZColOptions.Create(self);
     FColumns[i].Width := DefaultColWidth;
   end;
   for i := 0 to FRowCount - 1 do
   begin
-    FRows[i] := TZRowOptions.create(self);
+    FRows[i] := TZRowOptions.Create(self);
     FRows[i].Height := DefaultRowHeight;
   end;
   FSheetOptions := TZSheetOptions.Create();
@@ -3741,7 +3780,9 @@ begin
   for i:= 0 to FColCount - 1 do
   begin
     for j:= 0 to FRowCount - 1 do
-      FreeAndNil(FCells[i][j]);
+    begin
+      FCells[i][j].Free();
+    end;
     SetLength(FCells[i], 0);
     FColumns[i].Free;
     FCells[i] := nil;
@@ -3757,10 +3798,12 @@ end;
 
 procedure TZSheet.SetCell(ACol, ARow: integer; const Value: TZCell);
 begin
-  //добавить проверку на корректность текста
+  // todo: add text validation
   if (ACol >= 0) and (ACol < FColCount) and
      (ARow >= 0) and (ARow < FRowCount) then
-  FCells[ACol, ARow].Assign(Value);
+  begin
+    FCells[ACol, ARow].Assign(Value);
+  end;
 end;
 
 function TZSheet.GetCell(ACol, ARow: integer):TZCell;
@@ -3784,19 +3827,22 @@ begin
     for i := Value to FColCount - 1 do
     begin
       for j := 0 to FRowCount - 1 do
-        FreeAndNil(FCells[i][j]);
-      setlength(FCells[i], 0);
+      begin
+        FCells[i][j].Free();
+      end;
+      SetLength(FCells[i], 0);
       FreeAndNil(FColumns[i]);
     end;
-    setlength(FCells, Value);
+    SetLength(FCells, Value);
     SetLength(FColumns, Value);
-  end else
+  end
+  else
   begin
-    setlength(FCells, Value);
+    SetLength(FCells, Value);
     SetLength(FColumns, Value);
     for i := FColCount to Value - 1 do
     begin
-      setlength(FCells[i], FRowCount);
+      SetLength(FCells[i], FRowCount);
       FColumns[i] := TZColOptions.Create(self);
       FColumns[i].Width := DefaultColWidth;
       for j := 0 to FRowCount - 1 do
@@ -3823,18 +3869,21 @@ begin
   begin
     for i := 0 to FColCount - 1 do
     begin
-      for j := Value  to FRowCount - 1 do
-        FreeAndNil(FCells[i][j]);
-      setlength(FCells[i], Value);
+      for j := Value to FRowCount - 1 do
+      begin
+        FCells[i][j].Free();
+      end;
+      SetLength(FCells[i], Value);
     end;
     for i := Value to FRowCount - 1 do
       FreeAndNil(FRows[i]);
     SetLength(FRows, Value);
-  end else
+  end
+  else
   begin
     for i := 0 to FColCount - 1 do
     begin
-      setlength(FCells[i], Value);
+      SetLength(FCells[i], Value);
       for j := FRowCount to Value - 1 do
         FCells[i][j] := TZCell.Create();
     end;
