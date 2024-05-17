@@ -3180,7 +3180,7 @@ begin
   inherited Create();
   FSheet  := ASheet;
   FHidden := false;
-  FAuto  := true;
+  FAuto  := False; // true;
   FStyleID := -1;
   FBreaked := false;
 end;

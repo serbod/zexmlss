@@ -1508,9 +1508,9 @@ end; //ZEXLSXGetRelationName
 function XLSXBoolToStr(value: boolean): string;
 begin
   if (value) then
-    result := 'true'
+    result := '1'  //'true'
   else
-    result := 'false';
+    result := '0'; //'false';
 end;
 
 //Читает тему (themeXXX.xml)
@@ -5885,10 +5885,11 @@ var
     s: string;
   begin
     _xml.Attributes.Clear();
-    _xml.Attributes.Add('collapsed', 'false', false);
-    _xml.Attributes.Add('hidden', XLSXBoolToStr(ColOpt.Hidden), false);
     _xml.Attributes.Add('min', IntToStr(AMin), false);
     _xml.Attributes.Add('max', IntToStr(AMax), false);
+    //_xml.Attributes.Add('collapsed', 'false', false);
+    if ColOpt.Hidden then
+      _xml.Attributes.Add('hidden', XLSXBoolToStr(ColOpt.Hidden), false);
     s := '0';
     if ((ColOpt.StyleID >= -1) and (ColOpt.StyleID < XMLSS.Styles.Count)) then
       s := IntToStr(ColOpt.StyleID + 1);
@@ -5937,8 +5938,8 @@ var
     b: boolean;
     s: string;
     _r: TRect;
-    k1, k2, k: integer;
-    _in_merge_not_top: boolean; //if cell in merge area, but not top left
+    //k1, k2, k: integer;
+    //_in_merge_not_top: boolean; //if cell in merge area, but not top left
   begin
     _xml.Attributes.Clear();
     _xml.WriteTagNode('sheetData', true, true, true);
@@ -5946,12 +5947,13 @@ var
     for i := 0 to _sheet.RowCount - 1 do
     begin
       _xml.Attributes.Clear();
-      _xml.Attributes.Add('collapsed', 'false', false); //?
-      _xml.Attributes.Add('customFormat', 'false', false); //?
+      //_xml.Attributes.Add('collapsed', 'false', false); //?
+      //_xml.Attributes.Add('customFormat', 'false', false); //?
       _xml.Attributes.Add('customHeight', XLSXBoolToStr((abs(_sheet.DefaultRowHeight - _sheet.Rows[i].Height) > 0.001)){'true'}, false); //?
-      _xml.Attributes.Add('hidden', XLSXBoolToStr(_sheet.Rows[i].Hidden), false);
+      if _sheet.Rows[i].Hidden then
+        _xml.Attributes.Add('hidden', XLSXBoolToStr(_sheet.Rows[i].Hidden), false);
       _xml.Attributes.Add('ht', ZEFloatSeparator(FormatFloat('0.##', _sheet.Rows[i].HeightMM * 2.835)), false);
-      _xml.Attributes.Add('outlineLevel', '0', false);
+      //_xml.Attributes.Add('outlineLevel', '0', false);
       _xml.Attributes.Add('r', IntToStr(i + 1), false);
       _xml.WriteTagNode('row', true, true, false);
       for j := 0 to n do
@@ -5971,6 +5973,8 @@ var
           WriteHelper.AddHyperLink(s, _sheet.Cell[j, i].HRef, _sheet.Cell[j, i].HRefScreenTip, 'External');
 
         _xml.Attributes.Add('r', s);
+
+        { !! merged cells have individual border style, so next code not used
         _in_merge_not_top := false;
         k := _sheet.MergeCells.InMergeRange(j, i);
         if (k >= 0) then
@@ -5989,6 +5993,10 @@ var
 
         if (_sheet.Cell[k1, k2].CellStyle >= -1) and (_sheet.Cell[k1, k2].CellStyle < XMLSS.Styles.Count) then
           s := IntToStr(_sheet.Cell[k1, k2].CellStyle + 1)
+        }
+
+        if (_sheet.Cell[j, i].CellStyle >= -1) and (_sheet.Cell[j, i].CellStyle < XMLSS.Styles.Count) then
+          s := IntToStr(_sheet.Cell[j, i].CellStyle + 1)
         else
           s := '0';
         _xml.Attributes.Add('s', s, false);
@@ -6836,21 +6844,17 @@ var
     if (_BorderIndex[i + 1] = -2) then
     begin
       _xml.Attributes.Clear();
-      s := 'false';
       if (XMLSS.Styles[i].Border[4].Weight > 0) and (XMLSS.Styles[i].Border[4].LineStyle <> ZENone) then
-        s := 'true';
-      _xml.Attributes.Add('diagonalDown', s);
-      s := 'false';
+        _xml.Attributes.Add('diagonalDown', XLSXBoolToStr(True));
       if (XMLSS.Styles[i].Border[5].Weight > 0) and (XMLSS.Styles[i].Border[5].LineStyle <> ZENone) then
-        s := 'true';
-      _xml.Attributes.Add('diagonalUp', s, false);
+        _xml.Attributes.Add('diagonalUp', XLSXBoolToStr(True), false);
       _xml.WriteTagNode('border', true, true, true);
 
-      _WriteBorderItem(i, 0);
-      _WriteBorderItem(i, 2);
-      _WriteBorderItem(i, 1);
-      _WriteBorderItem(i, 3);
-      _WriteBorderItem(i, 4);
+      _WriteBorderItem(i, 0); // left
+      _WriteBorderItem(i, 2); // right
+      _WriteBorderItem(i, 1); // top
+      _WriteBorderItem(i, 3); // bottom
+      _WriteBorderItem(i, 4); // diagonal
 
       _xml.WriteEndTagNode(); //border
     end; //if
@@ -6884,14 +6888,6 @@ var
                     (_style.Alignment.Vertical <> ZVAutomatic) or
                     (_style.Alignment.Horizontal <> ZHAutomatic);
 
-    _xml.Attributes.Add('applyAlignment', XLSXBoolToStr(_addalignment));
-    _xml.Attributes.Add('applyBorder', 'true', false);
-    _xml.Attributes.Add('applyFont', 'true', false);
-    _xml.Attributes.Add('applyProtection', 'true', false);
-    _xml.Attributes.Add('borderId', IntToStr(_BorderIndex[NumStyle + 1]), false);
-    _xml.Attributes.Add('fillId', IntToStr(_FillIndex[NumStyle + 1] + 2), false); //+2 т.к. первыми всегда идут 2 левых стиля заливки
-    _xml.Attributes.Add('fontId', IntToStr(_FontIndex[NumStyle + 1]), false);
-
     // ECMA 376 Ed.4:  12.3.20 Styles Part; 17.9.17 numFmt (Numbering Format); 18.8.30 numFmt (Number Format)
     // http://social.msdn.microsoft.com/Forums/sa/oxmlsdk/thread/3919af8c-644b-4d56-be65-c5e1402bfcb6
     if (isxfId) then
@@ -6901,11 +6897,27 @@ var
 
     _xml.Attributes.Add('numFmtId', IntToStr(_num) {'164'}, false); // TODO: support formats
 
-    if (_num > 0) then
-      _xml.Attributes.Add('applyNumberFormat', '1', false);
-
     if (isxfId) then
       _xml.Attributes.Add('xfId', IntToStr(xfId), false);
+
+    if _BorderIndex[NumStyle + 1] <> 0 then
+      _xml.Attributes.Add('borderId', IntToStr(_BorderIndex[NumStyle + 1]), false);
+    if _FillIndex[NumStyle + 1] <> 0 then
+      _xml.Attributes.Add('fillId', IntToStr(_FillIndex[NumStyle + 1] + 2), false); //+2 т.к. первыми всегда идут 2 левых стиля заливки
+    if _FontIndex[NumStyle + 1] <> 0 then
+      _xml.Attributes.Add('fontId', IntToStr(_FontIndex[NumStyle + 1]), false);
+
+    // applyXXX attributes placed later
+    if (_num > 0) then
+      _xml.Attributes.Add('applyNumberFormat', '1', false);
+    if _addalignment then
+      _xml.Attributes.Add('applyAlignment', XLSXBoolToStr(_addalignment));
+    if _BorderIndex[NumStyle + 1] <> 0 then
+      _xml.Attributes.Add('applyBorder', XLSXBoolToStr(True), false);
+    if _FontIndex[NumStyle + 1] <> 0 then
+      _xml.Attributes.Add('applyFont', XLSXBoolToStr(True), false);
+    if XMLSS.Styles[NumStyle].Protect or XMLSS.Styles[NumStyle].HideFormula then
+      _xml.Attributes.Add('applyProtection', XLSXBoolToStr(True), false);
 
     _xml.WriteTagNode('xf', true, true, true);
 
@@ -6927,13 +6939,18 @@ var
     MS-OI29500: Microsoft Office Implementation Information for ISO/IEC-29500, 18.8.1.d *)
       end; //case
       _xml.Attributes.Add('horizontal', s);
-      _xml.Attributes.Add('indent', IntToStr(_style.Alignment.Indent), false);
-      _xml.Attributes.Add('shrinkToFit', XLSXBoolToStr(_style.Alignment.ShrinkToFit), false);
+      if _style.Alignment.Indent <> 0 then
+        _xml.Attributes.Add('indent', IntToStr(_style.Alignment.Indent), false);
+      if _style.Alignment.ShrinkToFit then
+        _xml.Attributes.Add('shrinkToFit', XLSXBoolToStr(_style.Alignment.ShrinkToFit), false);
 
 
-      if _style.Alignment.VerticalText then i := 255
-         else i := ZENormalizeAngle180(_style.Alignment.Rotate);
-      _xml.Attributes.Add('textRotation', IntToStr(i), false);
+      if _style.Alignment.VerticalText then
+        i := 255
+      else
+        i := ZENormalizeAngle180(_style.Alignment.Rotate);
+      if i <> 0 then
+        _xml.Attributes.Add('textRotation', IntToStr(i), false);
 
       case (_style.Alignment.Vertical) of
         ZVCenter: s := 'center';
@@ -6948,14 +6965,18 @@ var
     MS-OI29500: Microsoft Office Implementation Information for ISO/IEC-29500, 18.8.1.e *)
       end; //case
       _xml.Attributes.Add('vertical', s, false);
-      _xml.Attributes.Add('wrapText', XLSXBoolToStr(_style.Alignment.WrapText), false);
+      if _style.Alignment.WrapText then
+        _xml.Attributes.Add('wrapText', XLSXBoolToStr(_style.Alignment.WrapText), false);
       _xml.WriteEmptyTag('alignment', true);
     end; //if (_addalignment)
 
-    _xml.Attributes.Clear();
-    _xml.Attributes.Add('hidden', XLSXBoolToStr(XMLSS.Styles[NumStyle].Protect));
-    _xml.Attributes.Add('locked', XLSXBoolToStr(XMLSS.Styles[NumStyle].HideFormula));
-    _xml.WriteEmptyTag('protection', true);
+    if XMLSS.Styles[NumStyle].Protect or XMLSS.Styles[NumStyle].HideFormula then
+    begin
+      _xml.Attributes.Clear();
+      _xml.Attributes.Add('hidden', XLSXBoolToStr(XMLSS.Styles[NumStyle].Protect));
+      _xml.Attributes.Add('locked', XLSXBoolToStr(XMLSS.Styles[NumStyle].HideFormula));
+      _xml.WriteEmptyTag('protection', true);
+    end;
 
     _xml.WriteEndTagNode(); //xf
   end; //_WriteXF
