@@ -7375,6 +7375,7 @@ var
         ForceDirectories(sFullFilePath);
 
       Result := TFileStream.Create(sFullFileName, fmCreate);
+      StreamList.Add(Result);
     end
     else
     begin
