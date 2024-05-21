@@ -2187,10 +2187,10 @@ var
   function _StrToMM(const st: string; var retFloat: real): boolean;
   begin
     result := false;
-    if (s > '') then
+    if (s <> '') then
     begin
       retFloat := ZETryStrToFloat(st, -1);
-      if (retFloat > 0) then
+      if (retFloat >= 0) then
       begin
         result := true;
         retFloat := retFloat * ZE_MMinInch;
@@ -2331,6 +2331,64 @@ var
       end; //if
     end; //while
   end; //_ReadSheetViews()
+
+  // Read row page break info
+  procedure _ReadRowBreaks();
+  var
+    i, nRow: Integer;
+    IsManual: Boolean;
+  begin
+    while (not ((xml.TagName = 'rowBreaks') and (xml.TagType = TAG_TYPE_END))) do
+    begin
+      xml.ReadTag();
+      if (xml.Eof()) then
+        break;
+
+      if ((xml.TagName = 'brk') and (xml.TagType = TAG_TYPE_CLOSED)) then
+      begin
+        IsManual := False;
+        s := xml.Attributes.ItemsByName['man'];  // manual
+        if (s <> '') then
+          IsManual := ZETryStrToBoolean(s);
+
+        s := xml.Attributes.ItemsByName['id'];  // row index
+        if IsManual and TryStrToInt(s, nRow) then
+        begin
+          if nRow < _currSheet.RowCount then
+            _currSheet.Rows[nRow].Breaked := True;
+        end;
+      end;
+    end;
+  end; // _ReadRowBreaks()
+
+  // Read col page break info
+  procedure _ReadColBreaks();
+  var
+    i, nCol: Integer;
+    IsManual: Boolean;
+  begin
+    while (not ((xml.TagName = 'colBreaks') and (xml.TagType = TAG_TYPE_END))) do
+    begin
+      xml.ReadTag();
+      if (xml.Eof()) then
+        break;
+
+      if ((xml.TagName = 'brk') and (xml.TagType = TAG_TYPE_CLOSED)) then
+      begin
+        IsManual := False;
+        s := xml.Attributes.ItemsByName['man'];  // manual
+        if (s <> '') then
+          IsManual := ZETryStrToBoolean(s);
+
+        s := xml.Attributes.ItemsByName['id'];  // col index
+        if IsManual and TryStrToInt(s, nCol) then
+        begin
+          if nCol < _currSheet.ColCount then
+            _currSheet.Columns[nCol].Breaked := True;
+        end;
+      end;
+    end;
+  end; // _ReadRowBreaks()
 
   {$IFDEF ZUSE_CONDITIONAL_FORMATTING}
   //Чтение условного форматирования
@@ -2815,6 +2873,12 @@ begin
       else
       if ((xml.TagName = 'sheetViews') and (xml.TagType = TAG_TYPE_START)) then
         _ReadSheetViews()
+      else
+      if ((xml.TagName = 'rowBreaks') and (xml.TagType = TAG_TYPE_START)) then
+        _ReadRowBreaks()
+      else
+      if ((xml.TagName = 'colBreaks') and (xml.TagType = TAG_TYPE_START)) then
+        _ReadColBreaks()
       {$IFDEF ZUSE_CONDITIONAL_FORMATTING}
       else
       if ((xml.TagType = TAG_TYPE_START) and (xml.TagName = ZETag_conditionalFormatting)) then
@@ -6067,7 +6131,7 @@ var
   procedure WriteXLSXSheetFooter();
   var
     s: string;
-
+    i, n: Integer;
   begin
     _xml.Attributes.Clear();
     _xml.Attributes.Add('headings', 'false', false);
@@ -6114,6 +6178,60 @@ var
     //_xml.Attributes.Add('usePrinterDefaults', 'false', false); //do not use!
     _xml.Attributes.Add('verticalDpi', '300', false);
     _xml.WriteEmptyTag('pageSetup', true, false);
+    // row breaks
+    n := 0;
+    for i := 0 to _sheet.RowCount-1 do
+    begin
+      if _sheet.Rows[i].Breaked then
+        Inc(n);
+    end;
+    if n > 0 then
+    begin
+      _xml.Attributes.Clear();
+      _xml.Attributes.Add('count', IntToStr(n), false);
+      _xml.Attributes.Add('manualBreakCount', IntToStr(n), false);
+      _xml.WriteTagNode('rowBreaks', true, true, false);
+      for i := 0 to _sheet.RowCount-1 do
+      begin
+        if _sheet.Rows[i].Breaked then
+        begin
+          _xml.Attributes.Clear();
+          _xml.Attributes.Add('id', IntToStr(i), false);
+          //_xml.Attributes.Add('max', IntToStr(?), false);
+          _xml.Attributes.Add('man', XLSXBoolToStr(True), false);
+          _xml.WriteEmptyTag('brk');
+        end;
+      end;
+      _xml.WriteEndTagNode(); // rowBreaks
+    end;
+
+    // col breaks
+    n := 0;
+    for i := 0 to _sheet.ColCount-1 do
+    begin
+      if _sheet.Columns[i].Breaked then
+        Inc(n);
+    end;
+    if n > 0 then
+    begin
+      _xml.Attributes.Clear();
+      _xml.Attributes.Add('count', IntToStr(n), false);
+      _xml.Attributes.Add('manualBreakCount', IntToStr(n), false);
+      _xml.WriteTagNode('colBreaks', true, true, false);
+      for i := 0 to _sheet.ColCount-1 do
+      begin
+        if _sheet.Columns[i].Breaked then
+        begin
+          _xml.Attributes.Clear();
+          _xml.Attributes.Add('id', IntToStr(i), false);
+          //_xml.Attributes.Add('max', IntToStr(?), false);
+          _xml.Attributes.Add('man', XLSXBoolToStr(True), false);
+          _xml.WriteEmptyTag('brk');
+        end;
+      end;
+      _xml.WriteEndTagNode(); // colBreaks
+    end;
+
     //  <headerFooter differentFirst="false" differentOddEven="false">
     //    <oddHeader> ... </oddHeader>
     //    <oddFooter> ... </oddFooter>
